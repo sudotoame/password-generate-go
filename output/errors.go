@@ -19,10 +19,6 @@ func PrintErrorSwitch(value any) {
 	}
 }
 
-func sum[T int | float64 | float32 | int16 | int32 | string](a, b T) T {
-	return a + b
-}
-
 // PrintErrorIf could be useful in difficult situations
 // func PrintErrorIf(value any) {
 // 	if intValue, ok := value.(int); ok {
