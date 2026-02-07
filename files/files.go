@@ -1,28 +1,43 @@
+// Package files работает с локальными файлам json
 package files
 
 import (
 	"fmt"
 	"os"
+
+	"demo/password/output"
+
+	"github.com/fatih/color"
 )
 
-func ReadFile(name string) ([]byte, error) {
-	data, err := os.ReadFile(name)
+type JSONDB struct {
+	fileName string
+}
+
+func NewJSONDB(name string) *JSONDB {
+	return &JSONDB{
+		fileName: name,
+	}
+}
+
+func (db *JSONDB) Read() ([]byte, error) {
+	data, err := os.ReadFile(db.fileName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ERROR: READ_FILE")
 	}
 	return data, nil
 }
 
-func WriteFile(content []byte, name string) {
-	file, err := os.Create(name)
+func (db *JSONDB) Write(content []byte) {
+	file, err := os.Create(db.fileName)
 	if err != nil {
-		fmt.Println(err)
+		output.PrintErrorSwitch(err)
 	}
 	defer file.Close()
 	_, err = file.Write(content)
 	if err != nil {
-		fmt.Println(err)
+		output.PrintErrorSwitch(err)
 		return
 	}
-	fmt.Printf("Файл %s успешно обновлен.\n", name)
+	color.Green("Файл %s успешно обновлен.\n", db.fileName)
 }

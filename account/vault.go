@@ -1,20 +1,39 @@
 package account
 
 import (
-	"demo/password/files"
 	"encoding/json"
 	"strings"
 	"time"
 
+	"demo/password/output"
+
 	"github.com/fatih/color"
 )
+
+type ByteReader interface {
+	Read() ([]byte, error)
+}
+
+type ByteWriter interface {
+	Write([]byte)
+}
+
+type DB interface {
+	ByteReader
+	ByteWriter
+}
 
 type Vault struct {
 	Accounts  []Account `json:"accounts"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-func (vault *Vault) DeleteAccount(u string) (Account, bool) {
+type VaultWithDB struct {
+	Vault
+	db DB
+}
+
+func (vault *VaultWithDB) DeleteAccount(u string) (Account, bool) {
 	var accounts Account
 	for i, account := range vault.Accounts {
 		if strings.Contains(account.Url, u) {
@@ -27,7 +46,7 @@ func (vault *Vault) DeleteAccount(u string) (Account, bool) {
 	return accounts, false
 }
 
-func (vault *Vault) FindAccount(url string) []Account {
+func (vault *VaultWithDB) FindAccount(url string) []Account {
 	// findAcc := map[string]string{}
 	var accounts []Account
 	for _, value := range vault.Accounts {
@@ -38,23 +57,37 @@ func (vault *Vault) FindAccount(url string) []Account {
 	return accounts
 }
 
-func NewVault() *Vault {
-	file, err := files.ReadFile("data.json") // Читаем файл, если нету то возвращаем пустой
+func NewVault(db DB) *VaultWithDB {
+	file, err := db.Read() // Читаем файл, если нету то возвращаем пустой
 	if err != nil {
-		return &Vault{
-			Accounts:  []Account{},
-			UpdatedAt: time.Now(),
+		output.PrintErrorSwitch(err)
+		return &VaultWithDB{
+			Vault: Vault{
+				Accounts:  []Account{},
+				UpdatedAt: time.Now(),
+			},
+			db: db,
 		}
 	}
 	var vault Vault
 	err = json.Unmarshal(file, &vault) // Если файл сущестует то мы парсим json файл и возвращаем уже с распарсенный vault
 	if err != nil {
-		color.Red(err.Error())
+		output.PrintErrorSwitch(err)
+		return &VaultWithDB{
+			Vault: Vault{
+				Accounts:  []Account{},
+				UpdatedAt: time.Now(),
+			},
+			db: db,
+		}
 	}
-	return &vault
+	return &VaultWithDB{
+		Vault: vault,
+		db:    db,
+	}
 }
 
-func (vault *Vault) AddAccount(acc Account) {
+func (vault *VaultWithDB) AddAccount(acc Account) {
 	vault.Accounts = append(vault.Accounts, acc) // Добавляем созданный аккаунт
 	vault.save()
 }
@@ -67,11 +100,11 @@ func (vault *Vault) ToByte() ([]byte, error) {
 	return content, nil
 }
 
-func (vault *Vault) save() {
+func (vault *VaultWithDB) save() {
 	vault.UpdatedAt = time.Now()
 	data, err := vault.ToByte() // Парсим данные из созданного аккаунта
 	if err != nil {
 		color.Red(err.Error())
 	}
-	files.WriteFile(data, "data.json") // Добавляем распарсенные данные
+	vault.db.Write(data)
 }
